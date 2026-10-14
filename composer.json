@@ -1,0 +1,69 @@
+{
+    "name": "mikhailmelnikov/backpack-jobs-monitor",
+    "description": "Backpack for Laravel add-on: scheduler tasks and database queue jobs in the admin panel — list, run, retry, forget, flush.",
+    "license": "MIT",
+    "type": "library",
+    "keywords": [
+        "Laravel",
+        "Backpack",
+        "Backpack for Laravel",
+        "Backpack Addon",
+        "queue",
+        "scheduler",
+        "failed jobs"
+    ],
+    "authors": [
+        {
+            "name": "Mikhail Melnikov"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "backpack/crud": "^6.0|^7.0",
+        "mikhailmelnikov/laravel-jobs-monitor": "^1.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../laravel-jobs-monitor",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "mikhailmelnikov/laravel-jobs-monitor": "1.0.0"
+                }
+            }
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "MikhailMelnikov\\BackpackJobsMonitor\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MikhailMelnikov\\BackpackJobsMonitor\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "MikhailMelnikov\\BackpackJobsMonitor\\AddonServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

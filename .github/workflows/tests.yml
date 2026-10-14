@@ -1,0 +1,48 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.3'
+            laravel: '12.*'
+            testbench: '10.*'
+            backpack: '^6.8'
+          - php: '8.4'
+            laravel: '12.*'
+            testbench: '10.*'
+            backpack: '^7.0'
+          - php: '8.4'
+            laravel: '13.*'
+            testbench: '11.*'
+            backpack: '^7.0'
+
+    name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / Backpack ${{ matrix.backpack }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite
+          coverage: none
+
+      - name: Install dependencies
+        run: |
+          # the path repository is for local development next to the core package only
+          composer config --unset repositories
+          composer require "laravel/framework:${{ matrix.laravel }}" "backpack/crud:${{ matrix.backpack }}" --no-update --no-interaction
+          composer require "orchestra/testbench:${{ matrix.testbench }}" --dev --no-update --no-interaction
+          composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run tests
+        run: vendor/bin/pest
