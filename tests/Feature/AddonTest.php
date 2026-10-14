@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace MikhailMelnikov\BackpackJobsMonitor\Tests\Feature;
 
 use Illuminate\Foundation\Auth\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use MikhailMelnikov\BackpackJobsMonitor\BackpackActorResolver;
 use MikhailMelnikov\BackpackJobsMonitor\Console\InstallCommand;
+use MikhailMelnikov\BackpackJobsMonitor\Http\Controllers\QueueJobsController;
 use MikhailMelnikov\BackpackJobsMonitor\Tests\TestCase;
 use MikhailMelnikov\JobsMonitor\Contracts\ActorResolver;
+use MikhailMelnikov\JobsMonitor\UseCase\DeleteQueuedJobHandler;
 
 /**
  * The add-on wiring: routes, bindings, translations and actions.
@@ -104,5 +107,42 @@ class AddonTest extends TestCase
         $this->from(route('jobs-monitor.schedule'))
             ->post(route('jobs-monitor.schedule.run', ['task' => md5('task')]), ['mode' => 'nope'])
             ->assertSessionHasErrors('mode');
+    }
+
+    /**
+     * A handler bound in the application replaces the core one and gets the arguments by name.
+     */
+    public function testUsesHandlerBoundInContainer(): void
+    {
+        $this->app->bind(DeleteQueuedJobHandler::class, static fn ($app, array $parameters): object => new class ($parameters['id']) {
+            public function __construct(private readonly int $id)
+            {
+            }
+
+            public function handle(): string
+            {
+                return 'replaced ' . $this->id;
+            }
+        });
+
+        $this->from(route('jobs-monitor.queue'))
+            ->post(route('jobs-monitor.queue.delete', ['id' => 42]))
+            ->assertSessionHas('alert_messages.success', ['replaced 42']);
+    }
+
+    /**
+     * A controller bound in the application handles the add-on routes.
+     */
+    public function testUsesControllerBoundInContainer(): void
+    {
+        $this->app->bind(QueueJobsController::class, static fn (): QueueJobsController => new class () extends QueueJobsController {
+            public function destroyQueued(int $id): RedirectResponse
+            {
+                return redirect('/replaced/' . $id);
+            }
+        });
+
+        $this->post(route('jobs-monitor.queue.delete', ['id' => 7]))
+            ->assertRedirect('/replaced/7');
     }
 }

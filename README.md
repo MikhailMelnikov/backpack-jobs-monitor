@@ -99,6 +99,8 @@ php artisan vendor:publish --tag=jobs-monitor-config
 
 ## Переопределение
 
+### Шаблоны и переводы
+
 ```bash
 # шаблоны → resources/views/vendor/mikhailmelnikov/backpack-jobs-monitor
 php artisan vendor:publish --provider="MikhailMelnikov\BackpackJobsMonitor\AddonServiceProvider" --tag=views
@@ -106,6 +108,53 @@ php artisan vendor:publish --provider="MikhailMelnikov\BackpackJobsMonitor\Addon
 # переводы → lang/vendor/mikhailmelnikov.backpack-jobs-monitor
 php artisan vendor:publish --provider="MikhailMelnikov\BackpackJobsMonitor\AddonServiceProvider" --tag=lang
 ```
+
+### Замена контроллеров и хендлеров
+
+Контроллеры аддона и хендлеры ядра создаются через сервис-контейнер Laravel, поэтому любой из них можно подменить своим классом через `bind`, например в `AppServiceProvider::register()`:
+
+```php
+use App\Http\Controllers\Admin\MyQueueJobsController;
+use App\Jobs\Monitor\MyRetryFailedJobsHandler;
+use MikhailMelnikov\BackpackJobsMonitor\Http\Controllers\QueueJobsController;
+use MikhailMelnikov\JobsMonitor\UseCase\RetryFailedJobsHandler;
+
+public function register(): void
+{
+    // свой контроллер для маршрутов admin/jobs/queue
+    $this->app->bind(QueueJobsController::class, MyQueueJobsController::class);
+
+    // свой хендлер вместо хендлера ядра
+    $this->app->bind(RetryFailedJobsHandler::class, MyRetryFailedJobsHandler::class);
+}
+```
+
+```php
+use MikhailMelnikov\JobsMonitor\UseCase\RetryFailedJobsHandler;
+
+class MyRetryFailedJobsHandler extends RetryFailedJobsHandler
+{
+    public function handle(): string
+    {
+        // своя логика до/после
+        return parent::handle();
+    }
+}
+```
+
+Контроллеры: `ScheduledJobsController`, `QueueJobsController` (namespace `MikhailMelnikov\BackpackJobsMonitor\Http\Controllers`). Свой контроллер удобнее всего унаследовать от исходного и переопределить нужные методы.
+
+Хендлеры (namespace `MikhailMelnikov\JobsMonitor\UseCase`) и аргументы, которые контроллер передаёт в конструктор:
+
+| Хендлер | Аргументы |
+|---|---|
+| `GetScheduledTasksHandler`, `CountFailedJobsHandler`, `GetQueueOverviewHandler`, `GetQueuedJobsHandler`, `GetFailedJobsHandler`, `FlushFailedJobsHandler` | — |
+| `RunScheduledTaskHandler` | `taskId`, `mode` |
+| `DeleteQueuedJobHandler` | `id` |
+| `DeleteFailedJobHandler` | `uuid` |
+| `RetryFailedJobsHandler` | `uuids` (не передаётся при «Повторить все») |
+
+Аргументы передаются по имени, поэтому в своём хендлере сохраните имена параметров конструктора. При привязке через замыкание они приходят вторым аргументом: `fn ($app, array $parameters) => new MyHandler($parameters['id'])`.
 
 ## Безопасность
 

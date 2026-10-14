@@ -23,6 +23,7 @@ use MikhailMelnikov\JobsMonitor\UseCase\RetryFailedJobsHandler;
 class QueueJobsController extends Controller
 {
     use RedirectsWithAlert;
+    use ResolvesHandlers;
 
     /**
      * Page with the queue summary, queued jobs and failed jobs.
@@ -31,9 +32,9 @@ class QueueJobsController extends Controller
     {
         return view('mikhailmelnikov.backpack-jobs-monitor::queue', [
             'title' => trans('mikhailmelnikov.backpack-jobs-monitor::ui.queue.title'),
-            'overview' => (new GetQueueOverviewHandler())->handle(),
-            'queuedJobs' => (new GetQueuedJobsHandler())->handle(),
-            'failedJobs' => (new GetFailedJobsHandler())->handle(),
+            'overview' => $this->handler(GetQueueOverviewHandler::class)->handle(),
+            'queuedJobs' => $this->handler(GetQueuedJobsHandler::class)->handle(),
+            'failedJobs' => $this->handler(GetFailedJobsHandler::class)->handle(),
         ]);
     }
 
@@ -44,7 +45,7 @@ class QueueJobsController extends Controller
      */
     public function destroyQueued(int $id): RedirectResponse
     {
-        return $this->perform(static fn (): string => (new DeleteQueuedJobHandler($id))->handle());
+        return $this->perform(fn (): string => $this->handler(DeleteQueuedJobHandler::class, ['id' => $id])->handle());
     }
 
     /**
@@ -54,7 +55,7 @@ class QueueJobsController extends Controller
      */
     public function retryFailed(string $uuid): RedirectResponse
     {
-        return $this->perform(static fn (): string => (new RetryFailedJobsHandler([$uuid]))->handle());
+        return $this->perform(fn (): string => $this->handler(RetryFailedJobsHandler::class, ['uuids' => [$uuid]])->handle());
     }
 
     /**
@@ -62,7 +63,7 @@ class QueueJobsController extends Controller
      */
     public function retryAllFailed(): RedirectResponse
     {
-        return $this->perform(static fn (): string => (new RetryFailedJobsHandler())->handle());
+        return $this->perform(fn (): string => $this->handler(RetryFailedJobsHandler::class)->handle());
     }
 
     /**
@@ -72,7 +73,7 @@ class QueueJobsController extends Controller
      */
     public function destroyFailed(string $uuid): RedirectResponse
     {
-        return $this->perform(static fn (): string => (new DeleteFailedJobHandler($uuid))->handle());
+        return $this->perform(fn (): string => $this->handler(DeleteFailedJobHandler::class, ['uuid' => $uuid])->handle());
     }
 
     /**
@@ -80,6 +81,6 @@ class QueueJobsController extends Controller
      */
     public function flushFailed(): RedirectResponse
     {
-        return $this->perform(static fn (): string => (new FlushFailedJobsHandler())->handle());
+        return $this->perform(fn (): string => $this->handler(FlushFailedJobsHandler::class)->handle());
     }
 }

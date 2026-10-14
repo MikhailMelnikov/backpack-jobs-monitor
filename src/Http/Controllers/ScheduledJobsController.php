@@ -20,6 +20,7 @@ use MikhailMelnikov\JobsMonitor\UseCase\RunScheduledTaskHandler;
 class ScheduledJobsController extends Controller
 {
     use RedirectsWithAlert;
+    use ResolvesHandlers;
 
     /**
      * Page with the scheduler tasks.
@@ -28,9 +29,9 @@ class ScheduledJobsController extends Controller
     {
         return view('mikhailmelnikov.backpack-jobs-monitor::schedule', [
             'title' => trans('mikhailmelnikov.backpack-jobs-monitor::ui.schedule.title'),
-            'tasks' => (new GetScheduledTasksHandler())->handle(),
+            'tasks' => $this->handler(GetScheduledTasksHandler::class)->handle(),
             'queueConnection' => (string) config('queue.default'),
-            'failedCount' => (new CountFailedJobsHandler())->handle(),
+            'failedCount' => $this->handler(CountFailedJobsHandler::class)->handle(),
         ]);
     }
 
@@ -45,7 +46,7 @@ class ScheduledJobsController extends Controller
         $mode = $request->mode();
 
         return $this->perform(
-            static fn (): string => (new RunScheduledTaskHandler($task, $mode))->handle(),
+            fn (): string => $this->handler(RunScheduledTaskHandler::class, ['taskId' => $task, 'mode' => $mode])->handle(),
             'task_failed'
         );
     }
