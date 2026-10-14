@@ -38,8 +38,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # the path repository is for local development next to the core package only
-          composer config --unset repositories
           composer require "laravel/framework:${{ matrix.laravel }}" "backpack/crud:${{ matrix.backpack }}" --no-update --no-interaction
           composer require "orchestra/testbench:${{ matrix.testbench }}" --dev --no-update --no-interaction
           composer update --prefer-dist --no-interaction --no-progress

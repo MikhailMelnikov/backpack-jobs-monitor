@@ -26,18 +26,6 @@
         "orchestra/testbench": "^10.0|^11.0",
         "pestphp/pest": "^3.0|^4.0"
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "../laravel-jobs-monitor",
-            "options": {
-                "symlink": true,
-                "versions": {
-                    "mikhailmelnikov/laravel-jobs-monitor": "1.0.0"
-                }
-            }
-        }
-    ],
     "autoload": {
         "psr-4": {
             "MikhailMelnikov\\BackpackJobsMonitor\\": "src/"
