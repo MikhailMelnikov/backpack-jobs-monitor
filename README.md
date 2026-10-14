@@ -1,29 +1,53 @@
 # Backpack Jobs Monitor
 
-[Backpack for Laravel](https://backpackforlaravel.com) add-on that shows the Laravel **scheduler** and the **database queue** in your admin panel:
+Аддон для [Backpack for Laravel](https://backpackforlaravel.com), который показывает в админке **планировщик** Laravel и **очередь на базе БД**:
 
-- **Scheduler** page — every task with a human-readable schedule and next run; run a task manually: *Queue* (push its job to the queue) or *Now* (execute in the request);
-- **Queue** page — waiting / running / delayed / failed counters, queued jobs (delete), failed jobs with the error, stack trace, payload and the notification recipient (retry, retry all, delete, clear).
+- страница **«Планировщик»** — все задачи с расписанием в понятном виде и временем следующего запуска; ручной запуск задачи: *В очередь* (отправить её job в очередь) или *Сейчас* (выполнить прямо в запросе);
+- страница **«Очередь»** — счётчики ожидающих / выполняющихся / отложенных / упавших задач, список задач в очереди (удаление), упавшие задачи с ошибкой, стектрейсом, payload и адресом получателя уведомления (повтор, повтор всех, удаление, очистка).
 
-The logic lives in the admin-agnostic core [`mikhailmelnikov/laravel-jobs-monitor`](https://github.com/MikhailMelnikov/laravel-jobs-monitor); this package is the Backpack UI on top of it.
+Вся логика находится в ядре [`mikhailmelnikov/laravel-jobs-monitor`](https://github.com/MikhailMelnikov/laravel-jobs-monitor), которое не зависит от админки; этот пакет — интерфейс для Backpack поверх него.
 
-## Requirements
+## Требования
 
-- PHP 8.3+, Laravel 12 or 13
-- Backpack CRUD 6.x or 7.x (Tabler theme recommended)
-- the `database` queue driver for the queue page
+- PHP 8.3+, Laravel 12 или 13
+- Backpack CRUD 6.x или 7.x (рекомендуется тема Tabler)
+- для страницы «Очередь» — драйвер очереди `database`
 
-## Installation
+## Установка
 
-``` bash
-# install the package
+### 1. Установите пакет
+
+```bash
 composer require mikhailmelnikov/backpack-jobs-monitor
+```
 
-# [optional] add the menu items to the sidebar
+Ядро `mikhailmelnikov/laravel-jobs-monitor` установится автоматически как зависимость. Сервис-провайдеры подключаются через package discovery — регистрировать их вручную не нужно.
+
+### 2. Подготовьте таблицы очереди
+
+Страница «Очередь» читает таблицы `jobs` и `failed_jobs`. В новом приложении Laravel они уже есть в стандартных миграциях. Если их нет:
+
+```bash
+php artisan make:queue-table
+php artisan make:queue-failed-table
+php artisan migrate
+```
+
+В `.env` должен быть указан драйвер `database`:
+
+```dotenv
+QUEUE_CONNECTION=database
+```
+
+Если основная очередь работает на другом драйвере, укажите нужное подключение в `queue_connection` конфига ядра (см. ниже). Страница «Планировщик» работает с любым драйвером.
+
+### 3. Добавьте пункты в меню (необязательно)
+
+```bash
 php artisan backpack-jobs-monitor:install
 ```
 
-The install command adds this to `resources/views/vendor/backpack/ui/inc/menu_items.blade.php` — you can paste it yourself instead:
+Команда добавит в `resources/views/vendor/backpack/ui/inc/menu_items.blade.php` выпадающий пункт меню. Его можно вставить и вручную:
 
 ```blade
 <x-backpack::menu-dropdown :title="trans('mikhailmelnikov.backpack-jobs-monitor::ui.menu.title')" icon="la la-tasks">
@@ -32,47 +56,68 @@ The install command adds this to `resources/views/vendor/backpack/ui/inc/menu_it
 </x-backpack::menu-dropdown>
 ```
 
-The pages are available at **admin/jobs/schedule** and **admin/jobs/queue**.
+### 4. Ограничьте доступ (рекомендуется)
 
-## Configuration
+По умолчанию страницы доступны любому пользователю Backpack. Чтобы пустить только администраторов, опубликуйте конфиг и добавьте свой middleware:
 
-``` bash
+```bash
 php artisan vendor:publish --provider="MikhailMelnikov\BackpackJobsMonitor\AddonServiceProvider" --tag=config
 ```
 
+```php
+// config/mikhailmelnikov/backpack-jobs-monitor.php
+'middleware' => [\App\Http\Middleware\CheckIfAdmin::class],
+```
+
+### 5. Проверьте
+
+Страницы доступны по адресам **admin/jobs/schedule** и **admin/jobs/queue** (префикс `admin` берётся из `backpack.base.route_prefix`). Язык интерфейса определяется локалью приложения (`APP_LOCALE`): в комплекте английский и русский.
+
+Если в проекте включён кеш маршрутов или конфига, сбросьте его:
+
+```bash
+php artisan optimize:clear
+```
+
+## Настройка
+
 `config/mikhailmelnikov/backpack-jobs-monitor.php`:
 
-| Key | Default | Meaning |
+| Ключ | По умолчанию | Назначение |
 |---|---|---|
-| `setup_routes` | `true` | Register the routes. Set `false` to define your own routes to the add-on controllers. |
-| `route_prefix` | `jobs` | Path under the Backpack prefix. |
-| `middleware` | `[]` | Extra middleware on top of Backpack's `web` + admin ones, e.g. a role check: `[\App\Http\Middleware\CheckIfAdmin::class]`. |
+| `setup_routes` | `true` | Регистрировать маршруты. Укажите `false`, чтобы описать свои маршруты к контроллерам аддона. |
+| `route_prefix` | `jobs` | Путь внутри префикса Backpack. |
+| `middleware` | `[]` | Дополнительные middleware поверх `web` и admin-middleware Backpack, например проверка роли: `[\App\Http\Middleware\CheckIfAdmin::class]`. |
 
-Core settings (queue connection, page size, recipient attribute, …) are in `config/jobs-monitor.php` — see the [core README](https://github.com/MikhailMelnikov/laravel-jobs-monitor#configuration).
+Настройки ядра (подключение очереди, размер страницы, атрибут с адресом получателя и т. д.) находятся в `config/jobs-monitor.php` — см. [README ядра](https://github.com/MikhailMelnikov/laravel-jobs-monitor#configuration). Опубликовать его можно так:
 
-Manual actions are written to the log with the id of the Backpack user (`backpack_auth()`).
+```bash
+php artisan vendor:publish --tag=jobs-monitor-config
+```
 
-## Overwriting
+Ручные действия записываются в лог с id пользователя Backpack (`backpack_auth()`).
 
-``` bash
-# views → resources/views/vendor/mikhailmelnikov/backpack-jobs-monitor
+## Переопределение
+
+```bash
+# шаблоны → resources/views/vendor/mikhailmelnikov/backpack-jobs-monitor
 php artisan vendor:publish --provider="MikhailMelnikov\BackpackJobsMonitor\AddonServiceProvider" --tag=views
 
-# translations → lang/vendor/mikhailmelnikov.backpack-jobs-monitor
+# переводы → lang/vendor/mikhailmelnikov.backpack-jobs-monitor
 php artisan vendor:publish --provider="MikhailMelnikov\BackpackJobsMonitor\AddonServiceProvider" --tag=lang
 ```
 
-## Security
+## Безопасность
 
-Running scheduler tasks and flushing failed jobs are powerful actions. Every Backpack user can reach the pages by default — restrict them with the `middleware` option if needed.
+Запуск задач планировщика и очистка упавших задач — мощные действия. По умолчанию страницы доступны всем пользователям Backpack — при необходимости ограничьте доступ через опцию `middleware`.
 
-## Testing
+## Тесты
 
 ```bash
 composer install
 vendor/bin/pest
 ```
 
-## License
+## Лицензия
 
-MIT. See [LICENSE.md](LICENSE.md).
+MIT. См. [LICENSE.md](LICENSE.md).
